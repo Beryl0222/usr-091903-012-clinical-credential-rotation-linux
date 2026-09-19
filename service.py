@@ -1,34 +1,23 @@
-"""医护独立执业轮转的基础运行入口。"""
+"""医护独立执业轮转的运行入口。
+
+保留稳定的健康检查与服务身份；领域接口由 ``rotation_api`` 分发。
+"""
 
 import argparse
-import json
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
+
+from rotation_api import build_handler
 
 SERVICE_ID = "clinical-credential-rotation"
 SERVICE_NAME = "医护独立执业轮转"
+
+# 领域服务实例与 HTTP Handler；测试可通过 build_handler(service) 获得隔离实例。
+Handler = build_handler()
 
 
 def health_payload():
     """返回稳定的服务身份信息。"""
     return {"status": "ok", "service": SERVICE_ID, "name": SERVICE_NAME}
-
-
-class Handler(BaseHTTPRequestHandler):
-    """提供健康检查，并为领域接口保留清晰入口。"""
-
-    def do_GET(self):
-        if self.path != "/health":
-            self.send_error(404)
-            return
-        body = json.dumps(health_payload(), ensure_ascii=False).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def log_message(self, *_args):
-        return
 
 
 def main():
