@@ -1,34 +1,26 @@
-"""医护独立执业轮转的基础运行入口。"""
+"""医护独立执业轮转的运行入口。
+
+保留稳定的健康检查契约；领域能力见 rotation 包。
+"""
 
 import argparse
-import json
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import os
 
-SERVICE_ID = "clinical-credential-rotation"
-SERVICE_NAME = "医护独立执业轮转"
+from rotation.api import (
+    ApiHandler as Handler,
+    SERVICE_ID,
+    SERVICE_NAME,
+    build_server,
+    health_payload,
+)
+from rotation.domain import RotationService
+from rotation.store import EventStore
 
 
-def health_payload():
-    """返回稳定的服务身份信息。"""
-    return {"status": "ok", "service": SERVICE_ID, "name": SERVICE_NAME}
-
-
-class Handler(BaseHTTPRequestHandler):
-    """提供健康检查，并为领域接口保留清晰入口。"""
-
-    def do_GET(self):
-        if self.path != "/health":
-            self.send_error(404)
-            return
-        body = json.dumps(health_payload(), ensure_ascii=False).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def log_message(self, *_args):
-        return
+def build_default_server(port):
+    store_path = os.environ.get("ROTATION_STORE_PATH")
+    service = RotationService(EventStore(store_path) if store_path else EventStore())
+    return build_server(port, service)
 
 
 def main():
@@ -40,7 +32,7 @@ def main():
         assert health_payload()["service"] == SERVICE_ID
         print("基础检查通过")
         return
-    ThreadingHTTPServer(("0.0.0.0", args.port), Handler).serve_forever()
+    build_default_server(args.port).serve_forever()
 
 
 if __name__ == "__main__":
